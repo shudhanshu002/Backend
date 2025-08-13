@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Like } from "../models/like.model.js";
 import { Comment } from "../models/comment.model.js";
 
@@ -222,11 +222,20 @@ const updateVideo = asyncHandler(async (req, res) => {
     if (description) updateData.description = description;
 
     if (thumbnailLocalPath) {
+        // Get the old thumbnail URL before updating
+        const oldThumbnailUrl = video.thumbnail;
+
+
         const newThumbnail = await uploadOnCloudinary(thumbnailLocalPath);
         if (!newThumbnail?.url) {
             throw new ApiError(500, "Failed to upload new thumbnail");
         }
         updateData.thumbnail = newThumbnail.url;
+
+        // Delete old video from cloudnary
+        if(oldThumbnailUrl) {
+            await deleteFromCloudinary(oldThumbnailUrl)
+        }
     }
 
     const updatedVideo = await Video.findByIdAndUpdate(videoId, { $set: updateData }, { new: true });
@@ -252,10 +261,16 @@ const deleteVideo = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You do not have permission to delete this video");
     }
 
+    // Delete from cloudinary
+    if(video.videoFile){
+        await deleteFromCloudinary(video.videoFile, "video");
+    }
+    if (video.thumbnail) {
+        await deleteFromCloudinary(video.thumbnail, "image");
+    }
+
     // Delete video document from DB
     await Video.findByIdAndDelete(videoId);
-
-    // TODO: Delete video file and thumbnail from Cloudinary
 
     // Delete associated likes and comments
     await Like.deleteMany({ video: videoId });

@@ -16,7 +16,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
     //A user cannot subscribe to its own channel
     if(channelId.toString() === subscriberId.toString()) {
-        throw new ApiError(400, "Tou cannot subscribe to your own playlist");
+        throw new ApiError(400, "You cannot subscribe to your own playlist");
     }
 
     const subscriptionCriteria = {subscriber: subscriberId, channel: channelId};
